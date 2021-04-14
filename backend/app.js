@@ -4,6 +4,10 @@ const mongoose = require("mongoose");
 const userRoutes = require("./routes/user");
 const sauceRoutes = require("./routes/sauce");
 const path = require("path");
+const rateLimit = require("express-rate-limit");
+const helmet = require("helmet");
+const mongoSanitize = require("express-mongo-sanitize");
+const xssClean = require("xss-clean");
 require('dotenv').config();
 
 const app = express();
@@ -22,8 +26,26 @@ app.use((req, res, next) => {
     next();
 });
 
+//Definir le nombre de requêtes par IP
+const limiter = rateLimit({
+    max: 100,
+    windowMs: 60*60*1000,
+    message: "Un nombre important de requête a été effectué depuis cette adresse IP, veuillez réessayer dans 1 heure"
+});
+
+//Définit des en-tête HTTP sécurisés
+app.use(helmet());
+
+//Limite le nombre de requêtes API pour une même adresse IP
+app.use("/api", limiter);
 
 app.use(express.json());
+
+//Protection contre les injections NoSQL
+app.use(mongoSanitize());
+
+//Protection contre les attaques XSS
+app.use(xssClean());
 
 app.use("/images", express.static(path.join(__dirname, "images")));
 
